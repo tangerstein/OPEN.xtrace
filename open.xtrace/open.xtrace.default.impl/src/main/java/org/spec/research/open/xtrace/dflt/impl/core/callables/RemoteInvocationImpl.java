@@ -4,13 +4,10 @@ import java.io.Serializable;
 import java.util.Optional;
 
 import org.spec.research.open.xtrace.api.core.Location;
-import org.spec.research.open.xtrace.api.core.MobileRemoteMeasurement;
 import org.spec.research.open.xtrace.api.core.SubTrace;
 import org.spec.research.open.xtrace.api.core.callables.Callable;
-import org.spec.research.open.xtrace.api.core.callables.MobileMetadataMeasurement;
 import org.spec.research.open.xtrace.api.core.callables.RemoteInvocation;
 import org.spec.research.open.xtrace.api.utils.StringUtils;
-import org.spec.research.open.xtrace.dflt.impl.core.MobileRemoteMeasurementImpl;
 import org.spec.research.open.xtrace.dflt.impl.core.SubTraceImpl;
 
 /**
@@ -33,16 +30,6 @@ public class RemoteInvocationImpl extends AbstractTimedCallableImpl implements R
 	 * String representation of the target.
 	 */
 	private String target;
-	
-	/**
-	 * Measurement at the beginning of a remote call.
-	 */
-	private MobileRemoteMeasurementImpl requestMeasurement;
-	
-	/**
-	 * Measurement at the ending of a remote call.
-	 */
-	private MobileRemoteMeasurementImpl responseMeasurement;
 
 	/**
 	 * Default constructor for serialization. This constructor should not be used except for
@@ -80,34 +67,6 @@ public class RemoteInvocationImpl extends AbstractTimedCallableImpl implements R
 			target = targetSubTrace.getLocation().toString();
 		}
 		return target;
-	}
-	
-	@Override
-	public Optional<MobileRemoteMeasurement> getRequestMeasurement() {
-		return Optional.ofNullable(requestMeasurement);
-	}
-
-	@Override
-	public Optional<MobileRemoteMeasurement> getResponseMeasurement() {
-		return Optional.ofNullable(responseMeasurement);
-	}
-
-	/**
-	 * Set the measurement at the ending of this remote call.
-	 * 
-	 * @param responseMeasurement
-	 */
-	public void setResponseMeasurement(MobileRemoteMeasurementImpl responseMeasurement) {
-		this.responseMeasurement = responseMeasurement;
-	}
-	
-	/**
-	 * Set the measurement at the beginning of this remote call.
-	 * 
-	 * @param responseMeasurement
-	 */
-	public void setRequestMeasurement(MobileRemoteMeasurementImpl requestMeasurement) {
-		this.requestMeasurement = requestMeasurement;
 	}
 
 	/**

@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
+import org.codehaus.jackson.map.annotate.JsonSerialize;
 import org.spec.research.open.xtrace.api.core.callables.HTTPMethod;
 import org.spec.research.open.xtrace.api.core.callables.HTTPRequestProcessing;
 import org.spec.research.open.xtrace.api.utils.StringUtils;
@@ -15,6 +16,8 @@ public class IITHTTPRequestProcessing extends IITAbstractNestingCallable impleme
 	
 	/** Serial version id. */
 	private static final long serialVersionUID = 6077981592141469965L;
+
+	@JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 	private HttpTimerData httpData;
 
 	public IITHTTPRequestProcessing(InvocationSequenceData isData, IITSubTraceImpl containingTrace, IITAbstractNestingCallable parent) {

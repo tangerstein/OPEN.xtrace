@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.codehaus.jackson.map.annotate.JsonSerialize;
 import org.spec.research.open.xtrace.api.core.TreeIterator;
 import org.spec.research.open.xtrace.api.core.callables.Callable;
 import org.spec.research.open.xtrace.api.core.callables.NestingCallable;
@@ -15,6 +16,8 @@ public class IITAbstractNestingCallable extends IITAbstractTimedCallable impleme
 	
 	/** Serial version id. */
 	private static final long serialVersionUID = -5881753880225309401L;
+
+	@JsonSerialize(include = JsonSerialize.Inclusion.NON_EMPTY)
 	private List<Callable> children = null;
 
 	public IITAbstractNestingCallable(InvocationSequenceData isData, IITSubTraceImpl containingTrace, IITAbstractNestingCallable parent) {
@@ -66,7 +69,7 @@ public class IITAbstractNestingCallable extends IITAbstractTimedCallable impleme
 		return (int) isData.getChildCount();
 	}
 	
-	protected void addChild(Callable child){
+	public void addChild(Callable child) {
 		if(children == null){
 			children = new ArrayList<Callable>();
 		}

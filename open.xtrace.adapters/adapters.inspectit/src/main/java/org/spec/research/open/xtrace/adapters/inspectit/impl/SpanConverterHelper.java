@@ -2,193 +2,125 @@ package org.spec.research.open.xtrace.adapters.inspectit.impl;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import org.spec.research.open.xtrace.adapters.inspectit.importer.MobileTraceData;
+import org.spec.research.open.xtrace.adapters.inspectit.importer.TraceData;
 
 import rocks.inspectit.shared.all.cmr.model.PlatformIdent;
 import rocks.inspectit.shared.all.communication.data.InvocationSequenceData;
-import rocks.inspectit.shared.all.communication.data.MobilePeriodicMeasurement;
 import rocks.inspectit.shared.all.tracing.data.Span;
-import rocks.inspectit.shared.all.tracing.data.SpanIdent;
 
 class SpanConverterHelper {
-	
-	private static final String REQUEST = "http.request";
-	private static final String RESPONSE = "http.response";
+
 	private static final String URL = "http.url";
 	private static final String OPERATIONNAME = "ext.operation.name";
-	
-	protected IITAbstractCallable createCallable(IITSubTraceImpl containingTrace, IITAbstractNestingCallable parent, IITTraceImpl trace, MobileTraceData traceData) {
-		
+	private static final String COOKIE = "cookie";
+
+	protected IITAbstractCallable createCallable(IITSubTraceImpl containingTrace, IITAbstractNestingCallable parent, IITTraceImpl trace, TraceData traceData) {
+
 		Span rootSpan = getRootSpan(traceData.getSpans());
-		if(rootSpan == null){
+		if (rootSpan == null) {
 			throw new IllegalArgumentException("No root span found!");
 		}
-		
+
 		// TraceID is equal usecaseID
 		long traceID = rootSpan.getSpanIdent().getTraceId();
 		containingTrace.getContainingTrace().setIdentifier(traceID);
 
 		String operationName = rootSpan.getTags().get(OPERATIONNAME);
-		
+		String cookie = rootSpan.getTags().get(COOKIE);
+
 		InvocationSequenceData data = new InvocationSequenceData();
 		data.setTimeStamp(rootSpan.getTimeStamp());
 		data.setDuration(rootSpan.getDuration());
-		IITMobileMetaMeasurementCallable rootCallable = new IITMobileMetaMeasurementCallable(containingTrace, parent, traceID, operationName, null, data);
-		
-		addChildren(trace, traceData, containingTrace, rootCallable, rootSpan, traceData.getMeasurements());
-		
-		return rootCallable;
+		if (rootSpan.getTags().containsKey(URL)) {
+			IITRemoteInvocation rootCallable = null;
+			InvocationSequenceData remoteCall = getInvocationSequenceDataWithSpanID(rootSpan.getSpanIdent().getId(), traceData.getInvocationSequenceDatas());
+			rootCallable = new IITRemoteInvocation(remoteCall, containingTrace, parent);
+			if (remoteCall == null) {
+				rootCallable.setTargetSubTrace(null);
+			} else {
+				rootCallable.setTargetSubTrace(new IITSubTraceImpl(trace, remoteCall, getPlatformIdentWithID(remoteCall.getPlatformIdent(), traceData.getPlatformIdents())));
+			}
+			return rootCallable;
+		} else {
+			IITSpanCallable rootCallable = new IITSpanCallable(containingTrace, parent, traceID, operationName, cookie, data);
+			addChildren(trace, traceData, containingTrace, rootCallable, rootSpan);
+
+			return rootCallable;
+		}
 	}
-	
-	private void addChildren(IITTraceImpl trace, MobileTraceData traceData, IITSubTraceImpl containingTrace, IITMobileMetaMeasurementCallable parent, Span parentSpan, List<MobilePeriodicMeasurement> parentMeasurements){
+
+	private void addChildren(IITTraceImpl trace, TraceData traceData, IITSubTraceImpl containingTrace, IITSpanCallable parent, Span parentSpan) {
 
 		Timestamp startTime = parentSpan.getTimeStamp();
-		if(startTime == null){
+		if (startTime == null) {
 			throw new IllegalArgumentException(String.format("Timestamp of span with id %s is null!", parentSpan.getSpanIdent().getId()));
 		}
-		
-		// Get all measurements for complete span (with nesting spans)
-		List<MobilePeriodicMeasurement> measurements = getMeasurementsInInterval(parentMeasurements, startTime.getTime(), (long)parentSpan.getDuration());				
-		for (MobilePeriodicMeasurement periodicMeasurement : measurements) {
-			parentMeasurements.remove(periodicMeasurement);
-		}
-		
+
 		List<Span> children = getChildrenOfSpan(traceData.getSpans(), parentSpan);
 		for (Span child : children) {
-			if(child.getTags().containsKey(URL)){
-				
-				Map<String, String> requestMeasurement = new HashMap<String, String>();
-				Map<String, String> responseMeasurement = new HashMap<String, String>();
-				
-				this.insertRequestAndResponseMeasurements(child.getTags(), requestMeasurement, responseMeasurement);				
-				
-				Long requestTimestamp = null;
-				Long responseTimestamp = null;
-				if(child.getTimeStamp() != null){
-					requestTimestamp = child.getTimeStamp().getTime();
-					responseTimestamp = requestTimestamp + (long) child.getDuration();
-				}
-				
+			if (child.getTags().containsKey(URL)) {
 				IITRemoteInvocation remoteInvocation = null;
-				
-				List<Span> childrenOfRemoteMeasurement = getChildrenOfSpan(traceData.getSpans(), child);
-				
-				if(childrenOfRemoteMeasurement.isEmpty()){
-					// Remote system was not tracked
-					remoteInvocation = new IITRemoteInvocation(null, containingTrace, parent);
-					remoteInvocation.setTargetSubTrace(null);	
+				InvocationSequenceData remoteCall = getInvocationSequenceDataWithSpanID(child.getSpanIdent().getId(), traceData.getInvocationSequenceDatas());
+				remoteInvocation = new IITRemoteInvocation(remoteCall, containingTrace, parent);
+				if (remoteCall == null) {
+					remoteInvocation.setTargetSubTrace(null);
 				} else {
-					// Remote system was tracked
-					InvocationSequenceData remoteCall = getInvocationSequenceDataWithSpanID(childrenOfRemoteMeasurement.get(0).getSpanIdent().getId(), traceData.getInvocationSequenceDatas());
-					remoteInvocation = new IITRemoteInvocation(remoteCall, containingTrace, parent);
-					if(remoteCall == null){
-						remoteInvocation.setTargetSubTrace(null);	
-					} else {
-						remoteInvocation.setTargetSubTrace(new IITSubTraceImpl(trace, remoteCall, getPlatformIdentWithID(remoteCall.getPlatformIdent(), traceData.getPlatformIdents())));	
-					}
+					remoteInvocation.setTargetSubTrace(new IITSubTraceImpl(trace, remoteCall, getPlatformIdentWithID(remoteCall.getPlatformIdent(), traceData.getPlatformIdents())));
 				}
-				
-				remoteInvocation.setRequestMeasurement(new IITMobileRemoteMeasurement(requestTimestamp, requestMeasurement));
-				remoteInvocation.setResponseMeasurement(new IITMobileRemoteMeasurement(responseTimestamp, responseMeasurement));
 				parent.addChild(remoteInvocation);
-			} else {				
+			} else {
 				InvocationSequenceData data = new InvocationSequenceData();
 				data.setTimeStamp(child.getTimeStamp());
 				data.setDuration(child.getDuration());
-				IITMobileMetaMeasurementCallable usecaseCallable = new IITMobileMetaMeasurementCallable(containingTrace, parent, parent.getUseCaseID().get(), parent.getUseCaseName().orElse(""), null, data);
+				IITSpanCallable usecaseCallable = new IITSpanCallable(containingTrace, parent, parent.getUseCaseID().get(), child.getTags().get(OPERATIONNAME), child.getTags().get(COOKIE), data);
 				parent.addChild(usecaseCallable);
-				
-				addChildren(trace, traceData, containingTrace, usecaseCallable, child, measurements);
-			}
-		}		
 
-		// Add only span measurements, not nesting spans measurements
-		for (MobilePeriodicMeasurement periodicMeasurement : measurements) {
-			InvocationSequenceData data = new InvocationSequenceData();
-			data.setTimeStamp(periodicMeasurement.getTimeStamp());
-			IITAbstractNestingCallable childCallable = new IITMobileMetaMeasurementCallable(containingTrace, parent, parent.getUseCaseID().get(), parent.getUseCaseName().get(), periodicMeasurement, data);
-			parent.addChild(childCallable);
-		}
-	}
-	
-	private void insertRequestAndResponseMeasurements(Map<String, String> tags, Map<String, String> requestMeasurement, Map<String, String> responseMeasurement){
-		for (String key : tags.keySet()) {
-			int lastIndexOfPoint = key.lastIndexOf('.');
-			String value = tags.get(key);
-			
-			if(lastIndexOfPoint == -1){
-				requestMeasurement.put(key, value);
-				responseMeasurement.put(key, value);
-			} else {
-				String prefix = key.substring(0, lastIndexOfPoint);
-				String suffix = key.substring(lastIndexOfPoint + 1);
-				if(prefix.equals(REQUEST)){
-					requestMeasurement.put(suffix, value);				
-				} else if(prefix.equals(RESPONSE)){
-					responseMeasurement.put(suffix, value);				
-				} else {
-					requestMeasurement.put(suffix, value);
-					responseMeasurement.put(suffix, value);	
-				}
+				addChildren(trace, traceData, containingTrace, usecaseCallable, child);
 			}
 		}
+
 	}
-	
-	private Span getRootSpan(List<Span> spans){
+
+	private Span getRootSpan(List<Span> spans) {
 		for (Span span : spans) {
-			SpanIdent ident = span.getSpanIdent();
-			if(ident.getId() == ident.getParentId() && ident.getId() == ident.getTraceId()){
+			if (span.isRoot()) {
 				return span;
 			}
 		}
 		return null;
 	}
-	
-	private List<MobilePeriodicMeasurement> getMeasurementsInInterval(List<MobilePeriodicMeasurement> measurements, long from, long duration){
-		long to = from + duration;
-		
-		List<MobilePeriodicMeasurement> results = new ArrayList<MobilePeriodicMeasurement>();
-		for (MobilePeriodicMeasurement periodicMeasurement : measurements) {
-			if(periodicMeasurement.getTimestamp() >= from && periodicMeasurement.getTimestamp() <= to){
-				results.add(periodicMeasurement);
-			}
-		}
-		return results;
-	}
-	
-	private List<Span> getChildrenOfSpan(List<Span> spans, Span span){
+
+	private List<Span> getChildrenOfSpan(List<Span> spans, Span span) {
 		List<Span> children = new ArrayList<Span>();
 		for (Span element : spans) {
-			if(element.getSpanIdent().getParentId() == span.getSpanIdent().getId() && element.getSpanIdent().getParentId() != element.getSpanIdent().getId()){
+			if (element.getParentSpanId() == span.getSpanIdent().getId() && element.getParentSpanId() != element.getSpanIdent().getId()) {
 				children.add(element);
 			}
 		}
 		return children;
-	}	
-	
-	private InvocationSequenceData getInvocationSequenceDataWithSpanID(long spanIdentID, List<InvocationSequenceData> listInvocationSequenceData){
-		if(listInvocationSequenceData == null){
+	}
+
+	private InvocationSequenceData getInvocationSequenceDataWithSpanID(long spanIdentID, List<InvocationSequenceData> listInvocationSequenceData) {
+		if (listInvocationSequenceData == null) {
 			return null;
 		}
 		for (InvocationSequenceData sequenceData : listInvocationSequenceData) {
-			if(sequenceData.getSpanIdent() != null && sequenceData.getSpanIdent().getId() == spanIdentID){
-				return sequenceData;				
+			if (sequenceData.getSpanIdent() != null && sequenceData.getSpanIdent().getId() == spanIdentID) {
+				return sequenceData;
 			}
 		}
 		return null;
 	}
-	
-	private PlatformIdent getPlatformIdentWithID(long platformIdentID, List<PlatformIdent> listPlatformIdents){
-		if(listPlatformIdents == null){
+
+	private PlatformIdent getPlatformIdentWithID(long platformIdentID, List<PlatformIdent> listPlatformIdents) {
+		if (listPlatformIdents == null) {
 			return null;
 		}
 		for (PlatformIdent platformIdent : listPlatformIdents) {
-			if(platformIdent.getId() == platformIdentID){
-				return platformIdent;				
+			if (platformIdent.getId() == platformIdentID) {
+				return platformIdent;
 			}
 		}
 		return null;

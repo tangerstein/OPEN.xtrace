@@ -4,7 +4,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import org.spec.research.open.xtrace.adapters.inspectit.importer.MobileTraceData;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
+import org.spec.research.open.xtrace.adapters.inspectit.importer.TraceData;
 import org.spec.research.open.xtrace.api.core.Location;
 import org.spec.research.open.xtrace.api.core.SubTrace;
 import org.spec.research.open.xtrace.api.core.Trace;
@@ -25,10 +26,15 @@ public class IITSubTraceImpl extends IITAbstractIdentifiableImpl implements SubT
 
 	public static final String UNKNOWN = "UNKNOWN";
 
+	@JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 	private final InvocationSequenceData sequenceData;
+
 	private final Callable root;
+
 	private PlatformIdent pIdent;
+
 	protected IITTraceImpl trace;
+
 	private Long platformID;
 
 	public IITSubTraceImpl(IITTraceImpl containingTrace, InvocationSequenceData isData, PlatformIdent pIdent) {
@@ -56,10 +62,25 @@ public class IITSubTraceImpl extends IITAbstractIdentifiableImpl implements SubT
 	 * @param containingTrace
 	 * @param spans
 	 */
-	IITSubTraceImpl(IITTraceImpl containingTrace, MobileTraceData traceData) {
+	IITSubTraceImpl(IITTraceImpl containingTrace, TraceData traceData) {
 		super((traceData.getSpans().get(0).hashCode() * (long)Math.pow(10, String.valueOf(traceData.getSpans().get(0).getDuration()).length() + 1)) + (int)traceData.getSpans().get(0).getDuration());
 		this.trace = containingTrace;
 		this.root = (new SpanConverterHelper()).createCallable(this, null, trace, traceData);
+		this.sequenceData = null;
+		this.platformID = null;
+	}
+
+	/**
+	 * Only used for deserialization
+	 * 
+	 * @param containingTrace
+	 * @param identifier
+	 * @param callable
+	 */
+	public IITSubTraceImpl(IITTraceImpl containingTrace, Long identifier, Callable callable) {
+		super(identifier);
+		this.trace = containingTrace;
+		this.root = callable;
 		this.sequenceData = null;
 		this.platformID = null;
 	}
@@ -215,7 +236,7 @@ public class IITSubTraceImpl extends IITAbstractIdentifiableImpl implements SubT
 		return Optional.ofNullable(getPlatformIdent().getAgentName());
 	}
 
-	protected PlatformIdent getPlatformIdent() {
+	public PlatformIdent getPlatformIdent() {
 
 		if (pIdent == null && trace.getCachedDataService() != null) {
 			pIdent = trace.getCachedDataService().getPlatformIdentForId(platformID);
@@ -259,6 +280,26 @@ public class IITSubTraceImpl extends IITAbstractIdentifiableImpl implements SubT
 	public Optional<String> getServerName() {
 		// Not supported
 		return Optional.empty();
+	}
+
+	/**
+	 * Returns {@link InvocationSequenceData} used for serialization.
+	 * 
+	 * @return {@link InvocationSequenceData}
+	 */
+	public InvocationSequenceData getInvocationSequenceData() {
+		return sequenceData;
+	}
+
+	/**
+	 * Sets containing trace
+	 * 
+	 * @param traceImpl
+	 *            traceImpl
+	 */
+	public void setContainingTrace(IITTraceImpl traceImpl) {
+		this.trace = traceImpl;
+
 	}
 
 }

@@ -2,7 +2,7 @@ package org.spec.research.open.xtrace.adapters.inspectit.impl;
 
 import java.util.List;
 
-import org.spec.research.open.xtrace.adapters.inspectit.importer.MobileTraceData;
+import org.spec.research.open.xtrace.adapters.inspectit.importer.TraceData;
 import org.spec.research.open.xtrace.api.core.SubTrace;
 import org.spec.research.open.xtrace.api.core.Trace;
 import org.spec.research.open.xtrace.api.core.TreeIterator;
@@ -20,7 +20,8 @@ public class IITTraceImpl extends IITAbstractIdentifiableImpl implements Trace {
 	/** Serial version id. */
 	private static final long serialVersionUID = 2768574993119101303L;
 
-	private SubTrace root;
+	private IITSubTraceImpl root;
+
 	private ICachedDataService cachedDataService;
 
 	public IITTraceImpl(InvocationSequenceData root, ICachedDataService cachedDataService) {
@@ -39,9 +40,20 @@ public class IITTraceImpl extends IITAbstractIdentifiableImpl implements Trace {
 		this.root = new IITSubTraceImpl(this, root);
 	}
 	
-	public IITTraceImpl(MobileTraceData traceData) {		
+	public IITTraceImpl(TraceData traceData) {		
 		super((traceData.getSpans().get(0).hashCode() * (long)Math.pow(10, String.valueOf(traceData.getSpans().get(0).getDuration()).length() + 1)) + (int)traceData.getSpans().get(0).getDuration());
 		this.root = new IITSubTraceImpl(this, traceData);
+	}
+
+	/**
+	 * Only used for deserialization
+	 * 
+	 * @param traceData
+	 * 
+	 */
+	public IITTraceImpl(Long identifier, IITSubTraceImpl subTrace) {
+		super(identifier);
+		this.root = subTrace;
 	}
 	
 	@Override
@@ -50,7 +62,7 @@ public class IITTraceImpl extends IITAbstractIdentifiableImpl implements Trace {
 	}
 
 	@Override
-	public SubTrace getRoot() {
+	public IITSubTraceImpl getRoot() {
 		return root;
 	}
 

@@ -2,22 +2,23 @@ package org.spec.research.open.xtrace.adapters.inspectit.impl;
 
 import java.util.Optional;
 
+import org.codehaus.jackson.annotate.JsonTypeInfo;
 import org.spec.research.open.xtrace.api.core.Location;
-import org.spec.research.open.xtrace.api.core.MobileRemoteMeasurement;
 import org.spec.research.open.xtrace.api.core.SubTrace;
 import org.spec.research.open.xtrace.api.core.callables.RemoteInvocation;
 import org.spec.research.open.xtrace.api.utils.StringUtils;
 
 import rocks.inspectit.shared.all.communication.data.InvocationSequenceData;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "@class")
 public class IITRemoteInvocation extends IITAbstractTimedCallable implements RemoteInvocation {
 
 	/** Serial version id. */
 	private static final long serialVersionUID = -4775875155831584749L;
+
 	private IITSubTraceImpl targetSubTrace;
+
 	private String target;
-	private MobileRemoteMeasurement requestMeasurement;
-	private MobileRemoteMeasurement responseMeasurement;
 
 	public IITRemoteInvocation(InvocationSequenceData isData, IITSubTraceImpl containingSubTrace, IITAbstractNestingCallable parent) {
 		super(isData, containingSubTrace, parent);
@@ -58,23 +59,4 @@ public class IITRemoteInvocation extends IITAbstractTimedCallable implements Rem
 	public String toString() {
 		return StringUtils.getStringRepresentation(this);
 	}
-
-	@Override
-	public Optional<MobileRemoteMeasurement> getRequestMeasurement() {
-		return Optional.ofNullable(requestMeasurement);
-	}
-
-	@Override
-	public Optional<MobileRemoteMeasurement> getResponseMeasurement() {
-		return Optional.ofNullable(responseMeasurement);
-	}
-	
-	protected void setRequestMeasurement(MobileRemoteMeasurement requestMeasurement){
-		this.requestMeasurement = requestMeasurement;
-	}
-	
-	protected void setResponseMeasurement(MobileRemoteMeasurement responseMeasurement){
-		this.responseMeasurement = responseMeasurement;
-	}
-
 }

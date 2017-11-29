@@ -4,24 +4,20 @@ import java.util.List;
 
 import rocks.inspectit.shared.all.cmr.model.PlatformIdent;
 import rocks.inspectit.shared.all.communication.data.InvocationSequenceData;
-import rocks.inspectit.shared.all.communication.data.MobilePeriodicMeasurement;
 import rocks.inspectit.shared.all.tracing.data.Span;
 
 
-public class MobileTraceData {
+public class TraceData {
 	
 	private List<InvocationSequenceData> invocationSequenceDatas;
 	private List<PlatformIdent> platformIdents;
 	private List<Span> spans;
-	private List<MobilePeriodicMeasurement> measurements;
 	
-	public MobileTraceData(List<InvocationSequenceData> invocationSequenceDatas,
-			List<PlatformIdent> platformIdents, List<Span> spans, 
-			List<MobilePeriodicMeasurement> measurements) {
+	public TraceData(List<InvocationSequenceData> invocationSequenceDatas,
+			List<PlatformIdent> platformIdents, List<Span> spans) {
 		this.invocationSequenceDatas = invocationSequenceDatas;
 		this.spans = spans;
 		this.platformIdents = platformIdents;
-		this.measurements = measurements;
 	}
 	/**
 	 * @return the invocationSequenceDatas
@@ -59,17 +55,5 @@ public class MobileTraceData {
 	 */
 	public void setPlatformIdents(List<PlatformIdent> platformIdents) {
 		this.platformIdents = platformIdents;
-	}
-	/**
-	 * @return the measurements
-	 */
-	public List<MobilePeriodicMeasurement> getMeasurements() {
-		return measurements;
-	}
-	/**
-	 * @param measurements the measurements to set
-	 */
-	public void setMeasurements(List<MobilePeriodicMeasurement> measurements) {
-		this.measurements = measurements;
 	}
 }

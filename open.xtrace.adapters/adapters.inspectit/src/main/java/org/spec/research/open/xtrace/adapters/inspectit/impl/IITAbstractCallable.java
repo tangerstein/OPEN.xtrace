@@ -15,11 +15,15 @@ public class IITAbstractCallable extends IITAbstractIdentifiableImpl implements 
 
 	/** Serial version id. */
 	private static final long serialVersionUID = -7053659087635453623L;
-	
+
 	protected final InvocationSequenceData isData;
+
 	protected IITAbstractNestingCallable parent = null;
-	protected final IITSubTraceImpl containingTrace;
+
+	protected IITSubTraceImpl containingTrace;
+
 	private String threadName;
+
 	private long threadID;
 
 	public IITAbstractCallable(InvocationSequenceData isData, IITSubTraceImpl containingTrace, IITAbstractNestingCallable parent) {
@@ -39,6 +43,16 @@ public class IITAbstractCallable extends IITAbstractIdentifiableImpl implements 
 		return Optional.empty();
 	}
 
+	/**
+	 * Sets containing subTrace
+	 * 
+	 * @param subTrace
+	 *            The containing subtrace
+	 */
+	public void setContainingSubTrace(SubTrace subTrace) {
+		this.containingTrace = (IITSubTraceImpl) subTrace;
+	}
+
 	@Override
 	public SubTrace getContainingSubTrace() {
 		return containingTrace;
@@ -54,14 +68,32 @@ public class IITAbstractCallable extends IITAbstractIdentifiableImpl implements 
 		return parent;
 	}
 
+	/**
+	 * Sets parent.
+	 * 
+	 * @param parent
+	 *            the parent callable
+	 */
+	public void setParent(IITAbstractNestingCallable parent) {
+		this.parent = parent;
+	}
+
 	@Override
 	public long getTimestamp() {
-		return isData.getTimeStamp().getTime();
+		if (null != isData) {
+			return isData.getTimeStamp().getTime();
+		} else {
+			return -1;
+		}
+	}
+
+	public InvocationSequenceData getInvocationSequenceData() {
+		return isData;
 	}
 
 	@Override
 	public Optional<String> getThreadName() {
-		return Optional.of(threadName);
+		return Optional.ofNullable(threadName);
 	}
 
 	@Override

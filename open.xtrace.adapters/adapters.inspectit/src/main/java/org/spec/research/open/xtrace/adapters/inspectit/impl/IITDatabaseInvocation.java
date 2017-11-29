@@ -6,16 +6,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.codehaus.jackson.annotate.JsonAutoDetect;
+import org.codehaus.jackson.annotate.JsonAutoDetect.Visibility;
+import org.codehaus.jackson.map.annotate.JsonSerialize;
 import org.spec.research.open.xtrace.api.core.callables.DatabaseInvocation;
 import org.spec.research.open.xtrace.api.utils.StringUtils;
 
 import rocks.inspectit.shared.all.communication.data.InvocationSequenceData;
 import rocks.inspectit.shared.all.communication.data.SqlStatementData;
 
+@JsonAutoDetect(fieldVisibility = Visibility.ANY, getterVisibility = Visibility.NONE, setterVisibility = Visibility.NONE)
 public class IITDatabaseInvocation extends IITAbstractTimedCallable implements DatabaseInvocation {
 	
 	/** Serial version id. */
 	private static final long serialVersionUID = 2816048692421267237L;
+
+	@JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 	private SqlStatementData sqlData;
 
 	public IITDatabaseInvocation(InvocationSequenceData isData, IITSubTraceImpl containingTrace, IITAbstractNestingCallable parent) {

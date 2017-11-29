@@ -4,7 +4,6 @@ import java.text.DecimalFormat;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.spec.research.open.xtrace.api.core.Location;
-import org.spec.research.open.xtrace.api.core.MobileRemoteMeasurement;
 import org.spec.research.open.xtrace.api.core.SubTrace;
 import org.spec.research.open.xtrace.api.core.Trace;
 import org.spec.research.open.xtrace.api.core.TreeIterator;
@@ -14,8 +13,8 @@ import org.spec.research.open.xtrace.api.core.callables.ExceptionThrow;
 import org.spec.research.open.xtrace.api.core.callables.HTTPRequestProcessing;
 import org.spec.research.open.xtrace.api.core.callables.LoggingInvocation;
 import org.spec.research.open.xtrace.api.core.callables.MethodInvocation;
-import org.spec.research.open.xtrace.api.core.callables.MobileMetadataMeasurement;
 import org.spec.research.open.xtrace.api.core.callables.RemoteInvocation;
+import org.spec.research.open.xtrace.api.core.callables.SpanMeasurement;
 
 /**
  * Provides utility functionality related to String representations of OPEN.xtrace elements.
@@ -118,49 +117,20 @@ public final class StringUtils {
 	}
 	
 	/**
-	 * Creates a common String representation for the passed {@link MobileMetadataMeasurement} instance.
+	 * Creates a common String representation for the passed {@link SpanMeasurement} instance.
 	 * 
 	 * @param mobileMetadataMeasurement
-	 *            {@link MobileMetadataMeasurement} instance to provide the String representation for
-	 * @return common string representation for {@link MobileMetadataMeasurement}
+	 *            {@link SpanMeasurement} instance to provide the String representation for
+	 * @return common string representation for {@link SpanMeasurement}
 	 */
-	public static String getStringRepresentation(MobileMetadataMeasurement mobileMetadataMeasurement) {
+	public static String getStringRepresentation(SpanMeasurement spanMeasurement) {
 		StringBuilder strBuilder = new StringBuilder();
-		strBuilder.append("# MOBILE ");
+		strBuilder.append("# SPAN ");
 		strBuilder.append(" (");
-		strBuilder.append(mobileMetadataMeasurement.getUseCaseName());
+		strBuilder.append(spanMeasurement.getUseCaseName());
 		strBuilder.append(" | ");
-		strBuilder.append(mobileMetadataMeasurement.getUseCaseID());
+		strBuilder.append(spanMeasurement.getUseCaseID());
 		strBuilder.append(" | ");
-		strBuilder.append(mobileMetadataMeasurement.getBatteryPower());
-		strBuilder.append(" | ");
-		strBuilder.append(mobileMetadataMeasurement.getCPUUsage());
-		strBuilder.append(" | ");
-		strBuilder.append(mobileMetadataMeasurement.getMemoryUsage());
-		strBuilder.append(")");
-		return strBuilder.toString();
-	}
-	
-	/**
-	 * Creates a common String representation for the passed {@link MobileRemoteMeasurement} instance.
-	 * 
-	 * @param remoteMeasurement
-	 *            {@link MobileRemoteMeasurement} instance to provide the String representation for
-	 * @return common string representation for {@link MobileRemoteMeasurement}
-	 */
-	public static String getStringRepresentation(MobileRemoteMeasurement remoteMeasurement) {
-		StringBuilder strBuilder = new StringBuilder();
-		strBuilder.append("# REMOTE_MEASUREMENTS ");
-		strBuilder.append(" (");
-		strBuilder.append(remoteMeasurement.getUseCaseName());
-		strBuilder.append(" | ");
-		strBuilder.append(remoteMeasurement.getUseCaseID());
-		strBuilder.append(" | ");
-		strBuilder.append(remoteMeasurement.getTimestamp());
-		strBuilder.append(" | ");
-		strBuilder.append(remoteMeasurement.getLatitude());
-		strBuilder.append(" | ");
-		strBuilder.append(remoteMeasurement.getLongitude());
 		strBuilder.append(")");
 		return strBuilder.toString();
 	}

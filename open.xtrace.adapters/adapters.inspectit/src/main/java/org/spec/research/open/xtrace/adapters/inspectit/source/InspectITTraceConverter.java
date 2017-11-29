@@ -11,14 +11,13 @@ import org.diagnoseit.spike.shared.TraceSink;
 import org.diagnoseit.spike.shared.TraceSource;
 import org.spec.research.open.xtrace.adapters.inspectit.impl.IITTraceImpl;
 import org.spec.research.open.xtrace.adapters.inspectit.importer.InvocationSequences;
-import org.spec.research.open.xtrace.adapters.inspectit.importer.MobileTraceData;
 import org.spec.research.open.xtrace.adapters.inspectit.importer.SerializerWrapper;
+import org.spec.research.open.xtrace.adapters.inspectit.importer.TraceData;
 import org.spec.research.open.xtrace.api.core.Trace;
 import org.spec.research.open.xtrace.shared.TraceConverter;
 
 import rocks.inspectit.shared.all.cmr.model.PlatformIdent;
 import rocks.inspectit.shared.all.communication.data.InvocationSequenceData;
-import rocks.inspectit.shared.all.communication.data.MobilePeriodicMeasurement;
 import rocks.inspectit.shared.all.tracing.data.Span;
 
 public class InspectITTraceConverter implements TraceSource, TraceConverter {
@@ -147,7 +146,7 @@ public class InspectITTraceConverter implements TraceSource, TraceConverter {
 		return convertTraces();
 	}
 	
-	public Trace convertTraces(List<InvocationSequenceData> isDatas, List<PlatformIdent> platformIdents, List<Span> spans, List<MobilePeriodicMeasurement> measurements){
+	public Trace convertTraces(List<InvocationSequenceData> isDatas, List<PlatformIdent> platformIdents, List<Span> spans) {
 		
 		if(isDatas == null){
 			throw new IllegalArgumentException("InvocationSequenceData is null");
@@ -158,12 +157,9 @@ public class InspectITTraceConverter implements TraceSource, TraceConverter {
 		if(spans == null){
 			throw new IllegalArgumentException("Spans is null");
 		}
-		if(measurements == null){
-			throw new IllegalArgumentException("Measurements is null");
-		}
 		
-		MobileTraceData mobileData = new MobileTraceData(isDatas, platformIdents, spans, measurements);
-		return (new IITTraceImpl(mobileData));
+		TraceData traceData = new TraceData(isDatas, platformIdents, spans);
+		return (new IITTraceImpl(traceData));
 	}
 
 }

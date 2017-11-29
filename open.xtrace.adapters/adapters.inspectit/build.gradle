@@ -10,7 +10,6 @@ dependencies {
 	compile 'com.esotericsoftware.kryo:kryo:2.24.0'
 	compile 'com.esotericsoftware.kryonet:info.novatec.kryonet:2.21'
 	compile 'de.javakaffee:info.novatec.kryo-serializers:0.23'
-
 	compile files('libs/inspectit.shared.all.jar')
 	compile files('libs/open.xtrace.api.jar')
 	

@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import org.codehaus.jackson.map.annotate.JsonSerialize;
 import org.spec.research.open.xtrace.api.core.Trace;
 import org.spec.research.open.xtrace.api.core.callables.MethodInvocation;
 import org.spec.research.open.xtrace.api.utils.StringUtils;
@@ -21,7 +22,11 @@ public class IITMethodInvocation extends IITAbstractNestingCallable implements M
 	/** Serial version id. */
 	private static final long serialVersionUID = -1927896596577582065L;
 	private static final String CONSTRUCTOR_SUFFIX = "<init>";
+
+	@JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 	private MethodIdent methodIdentifier = null;
+
+	@JsonSerialize(include = JsonSerialize.Inclusion.NON_NULL)
 	private String signature;
 
 	public IITMethodInvocation(InvocationSequenceData isData, IITSubTraceImpl containingTrace, IITAbstractNestingCallable parent) {
