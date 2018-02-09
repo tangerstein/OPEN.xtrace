@@ -26,6 +26,11 @@ public class LocationImpl implements Location, Serializable {
 	private String host = null;
 
 	/**
+	 * Identifies the port.
+	 */
+	private int port = 0;
+
+	/**
 	 * Identifies the runtime environment (e.g. the JVM).
 	 */
 	private Optional<String> runTimeEnvironment = Optional.empty();
@@ -68,8 +73,9 @@ public class LocationImpl implements Location, Serializable {
 	 * @param businessTransaction
 	 *            Identifies the business transaction
 	 */
-	public LocationImpl(String host, String runTimeEnvironment, String application, String businessTransaction) {
+	public LocationImpl(String host, int port, String runTimeEnvironment, String application, String businessTransaction) {
 		this.setHost(host);
+		this.setPort(port);
 		this.setRunTimeEnvironment(runTimeEnvironment);
 		this.setApplication(application);
 		this.setBusinessTransaction(businessTransaction);
@@ -166,6 +172,15 @@ public class LocationImpl implements Location, Serializable {
 	 */
 	public void setServerName(String serverName) {
 		this.serverName = Optional.ofNullable(serverName);
+	}
+
+	@Override
+	public int getPort() {
+		return port;
+	}
+
+	public void setPort(int port) {
+		this.port = port;
 	}
 
 }

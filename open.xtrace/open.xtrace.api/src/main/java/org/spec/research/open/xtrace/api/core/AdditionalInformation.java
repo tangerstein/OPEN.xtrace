@@ -16,4 +16,9 @@ public interface AdditionalInformation {
      * @return name of the {@link AdditionalInformation} type
      */
     String getName();
+
+	/**
+	 * Returns the value of the additional information type
+	 */
+	Object getValue();
 }

@@ -17,6 +17,13 @@ public interface Location {
      */
     String getHost();
 
+	/**
+	 * Returns the port of the host where the trace {@link SubTrace} was collected.
+	 *
+	 * @return port number of the corresponding system node.
+	 */
+	int getPort();
+
     /**
      * Returns the runtime environment.
      *

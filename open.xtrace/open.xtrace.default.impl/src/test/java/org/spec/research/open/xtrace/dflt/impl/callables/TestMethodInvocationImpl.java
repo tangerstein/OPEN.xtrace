@@ -69,7 +69,7 @@ public class TestMethodInvocationImpl {
 
         SubTraceImpl subTrace = new SubTraceImpl(1, null, trace);
         trace.setRoot(subTrace);
-        subTrace.setLocation(new LocationImpl("localhost", "JVM", "APP", "BT"));
+		subTrace.setLocation(new LocationImpl("localhost", 8080, "JVM", "APP", "BT"));
         MethodInvocationImpl m1 = new MethodInvocationImpl(null, subTrace);
 
         m1.setReturnType(RETURN_TYPES[0]);

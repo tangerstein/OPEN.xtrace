@@ -3,16 +3,20 @@ package org.diagnoseit.spike.inspectit.trace.impl;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
 
+import org.spec.research.open.xtrace.adapters.inspectit.source.SpanConverterHelper;
 import org.spec.research.open.xtrace.api.core.TreeIterator;
 import org.spec.research.open.xtrace.api.core.callables.Callable;
 import org.spec.research.open.xtrace.api.core.callables.NestingCallable;
 import org.spec.research.open.xtrace.api.utils.CallableIterator;
 
 import rocks.inspectit.shared.all.communication.data.InvocationSequenceData;
+import rocks.inspectit.shared.all.tracing.data.SpanIdent;
 
 public class IITAbstractNestingCallable extends IITAbstractTimedCallable implements NestingCallable {
-	
+
 	/** Serial version id. */
 	private static final long serialVersionUID = -5881753880225309401L;
 	private List<Callable> children = null;
@@ -27,21 +31,37 @@ public class IITAbstractNestingCallable extends IITAbstractTimedCallable impleme
 	}
 
 	@Override
+	/**
+	 * Assumption: If there are nested Sequences, we do not have any additional span children.
+	 */
 	public List<Callable> getCallees() {
-		if (children == null) {
+		if (children == null || children.isEmpty()) {
 			if (isData.getNestedSequences().isEmpty()) {
-				children = Collections.emptyList();
+				children = new ArrayList<Callable>();
+				if (null != isData.getSpanIdent() && super.containingTrace.trace.getTraceData().isPresent()) {
+					children.add(SpanConverterHelper.createCallable(super.containingTrace, this, super.containingTrace.trace, super.containingTrace.trace.getTraceData().get(),
+							SpanConverterHelper.getSpan(isData.getSpanIdent(), super.containingTrace.trace.getTraceData().get().getSpans())));
+				}
+
 			} else {
 				children = new ArrayList<Callable>(isData.getNestedSequences().size());
-				for (InvocationSequenceData isd : isData.getNestedSequences()) {
+				List<InvocationSequenceData> nestedInvocationSequences = isData.getNestedSequences();
+
+				for (InvocationSequenceData isd : nestedInvocationSequences) {
 					IITAbstractCallable child = IITTraceImpl.createCallable(isd, containingTrace, this);
 					children.add(child);
 				}
 			}
-
 		}
 
 		return Collections.unmodifiableList(children);
+	}
+
+	public void addCallee(Callable callee) {
+		if (children == null) {
+			getCallees();
+		}
+		children.add(callee);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -65,6 +85,20 @@ public class IITAbstractNestingCallable extends IITAbstractTimedCallable impleme
 	@Override
 	public int getChildCount() {
 		return (int) isData.getChildCount();
+	}
+
+	private boolean invocationSequenceConsistsOfSpanId(InvocationSequenceData invocationSequenceData, SpanIdent spanIdent) {
+		Queue<InvocationSequenceData> invocationSequenceDatas = new LinkedBlockingQueue<InvocationSequenceData>();
+		invocationSequenceDatas.addAll(invocationSequenceData.getNestedSequences());
+		while (!invocationSequenceDatas.isEmpty()) {
+			InvocationSequenceData nestenInvocationSequenceData = invocationSequenceDatas.poll();
+			if (nestenInvocationSequenceData.getSpanIdent() != null && nestenInvocationSequenceData.getSpanIdent().equals(spanIdent)) {
+				return true;
+			} else {
+				invocationSequenceDatas.addAll(nestenInvocationSequenceData.getNestedSequences());
+			}
+		}
+		return false;
 	}
 
 }

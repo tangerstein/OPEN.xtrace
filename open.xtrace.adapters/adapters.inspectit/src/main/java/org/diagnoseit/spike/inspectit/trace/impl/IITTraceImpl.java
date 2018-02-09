@@ -1,5 +1,8 @@
 package org.diagnoseit.spike.inspectit.trace.impl;
 
+import java.util.Optional;
+
+import org.spec.research.open.xtrace.adapters.inspectit.source.TraceData;
 import org.spec.research.open.xtrace.api.core.SubTrace;
 import org.spec.research.open.xtrace.api.core.Trace;
 import org.spec.research.open.xtrace.api.core.TreeIterator;
@@ -18,6 +21,11 @@ public class IITTraceImpl extends IITAbstractIdentifiableImpl implements Trace {
 	/** Serial version id. */
 	private static final long serialVersionUID = 2768574993119101303L;
 
+	/**
+	 * Trace data, which consists of all span data available.
+	 */
+	private TraceData traceData;
+
 	protected static IITAbstractCallable createCallable(InvocationSequenceData isData, IITSubTraceImpl containingTrace, IITAbstractNestingCallable parent) {
 		if (isData.getSqlStatementData() != null) {
 			return new IITDatabaseInvocation(isData, containingTrace, parent);
@@ -33,13 +41,20 @@ public class IITTraceImpl extends IITAbstractIdentifiableImpl implements Trace {
 
 	public IITTraceImpl(InvocationSequenceData root, ICachedDataService cachedDataService) {
 		super(root.getId());
-		this.root = new IITSubTraceImpl(this, root);
 		this.cachedDataService = cachedDataService;
+		this.root = new IITSubTraceImpl(this, root);
 	}
 
 	public IITTraceImpl(InvocationSequenceData root, PlatformIdent pIdent) {
 		super(root.getId());
 		this.root = new IITSubTraceImpl(this, root, pIdent);
+	}
+
+	public IITTraceImpl(TraceData traceData, ICachedDataService cachedDataService) {
+		super((traceData.getRootSpan().hashCode() * (long) Math.pow(10, String.valueOf(traceData.getRootSpan().getDuration()).length() + 1)) + (int) traceData.getRootSpan().getDuration());
+		this.cachedDataService = cachedDataService;
+		this.traceData = traceData;
+		this.root = new IITSubTraceImpl(this, traceData, null, traceData.getRootSpan());
 	}
 
 	@Override
@@ -88,6 +103,10 @@ public class IITTraceImpl extends IITAbstractIdentifiableImpl implements Trace {
 		} else {
 			return root.getResponseTime();
 		}
+	}
+
+	public Optional<TraceData> getTraceData() {
+		return Optional.ofNullable(traceData);
 	}
 
 }

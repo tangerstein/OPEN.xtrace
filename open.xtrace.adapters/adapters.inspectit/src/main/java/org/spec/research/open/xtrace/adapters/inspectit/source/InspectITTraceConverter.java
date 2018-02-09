@@ -16,7 +16,9 @@ import org.spec.research.open.xtrace.api.core.Trace;
 import org.spec.research.open.xtrace.shared.TraceConverter;
 
 import rocks.inspectit.shared.all.cmr.model.PlatformIdent;
+import rocks.inspectit.shared.all.cmr.service.ICachedDataService;
 import rocks.inspectit.shared.all.communication.data.InvocationSequenceData;
+import rocks.inspectit.shared.all.tracing.data.Span;
 
 public class InspectITTraceConverter implements TraceSource, TraceConverter {
 	private static final String DATA_PATH = "inspectit.fileimporter.datapath";
@@ -25,7 +27,7 @@ public class InspectITTraceConverter implements TraceSource, TraceConverter {
 	private TraceSink traceSink;
 	private double responseTimeThreshold = -1;
 
-	private void readInvocations(final String path){
+	private void readInvocations(final String path) {
 		try {
 			SerializerWrapper serializer = new SerializerWrapper();
 			InvocationSequences iSequences = serializer.readInvocationSequencesFromDir(path);
@@ -35,8 +37,8 @@ public class InspectITTraceConverter implements TraceSource, TraceConverter {
 			throw new RuntimeException(e);
 		}
 	}
-	
-	private Trace getNextTrace(){
+
+	private Trace getNextTrace() {
 		if (!isDataIterator.hasNext()) {
 			throw new NoSuchElementException("Iterator reached the end!");
 		}
@@ -51,7 +53,7 @@ public class InspectITTraceConverter implements TraceSource, TraceConverter {
 		}
 		throw new NoSuchElementException("Iterator reached the end!");
 	}
-	
+
 	@Override
 	public void initialize(Properties properties, TraceSink traceSink) {
 		String dataPath = properties.getProperty(DATA_PATH);
@@ -104,23 +106,38 @@ public class InspectITTraceConverter implements TraceSource, TraceConverter {
 
 	@Override
 	public List<Trace> convertTraces(final String path) {
-		
+
 		if (path == null) {
 			throw new IllegalArgumentException("Data path has not been specified for the inspectIT file importer trace source.");
 		}
 
 		List<Trace> listConvertedTraces = new LinkedList<Trace>();
-		
+
 		this.readInvocations(path);
 
 		responseTimeThreshold = RESPONSETIME_THRESHOLD_DEFAULT;
 
 		Trace trace = getNextTrace();
-		if(trace != null){
+		if (trace != null) {
 			listConvertedTraces.add(trace);
 		}
-		
+
 		return listConvertedTraces;
 	}
 
+	public Trace convertTrace(List<InvocationSequenceData> isDatas, List<PlatformIdent> platformIdents, List<Span> spans, ICachedDataService cachedDataService) {
+
+		if (isDatas == null) {
+			throw new IllegalArgumentException("InvocationSequenceData is null");
+		}
+		if (platformIdents == null) {
+			throw new IllegalArgumentException("PlatformIdent is null");
+		}
+		if (spans == null) {
+			throw new IllegalArgumentException("Spans is null");
+		}
+
+		TraceData traceData = new TraceData(isDatas, platformIdents, spans);
+		return (new IITTraceImpl(traceData, cachedDataService));
+	}
 }

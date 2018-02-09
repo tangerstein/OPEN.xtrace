@@ -1,6 +1,8 @@
 package org.spec.research.open.xtrace.dflt.impl.serialization;
 
 import org.spec.research.open.xtrace.api.core.Trace;
+import org.spec.research.open.xtrace.dflt.impl.serialization.realizations.JsonOPENxtraceDeserializer;
+import org.spec.research.open.xtrace.dflt.impl.serialization.realizations.JsonOPENxtraceSerializer;
 import org.spec.research.open.xtrace.dflt.impl.serialization.realizations.KryoOPENxtraceDeserializer;
 import org.spec.research.open.xtrace.dflt.impl.serialization.realizations.KryoOPENxtraceSerializer;
 
@@ -47,6 +49,7 @@ public final class OPENxtraceSerializationFactory {
 		case BINARY:
 			return new KryoOPENxtraceSerializer();
 		case JSON:
+			return new JsonOPENxtraceSerializer();
 		default:
 			throw new IllegalArgumentException("Unsupported format: " + format);
 		}
@@ -64,6 +67,7 @@ public final class OPENxtraceSerializationFactory {
 		case BINARY:
 			return new KryoOPENxtraceDeserializer();
 		case JSON:
+			return new JsonOPENxtraceDeserializer();
 		default:
 			throw new IllegalArgumentException("Unsupported format: " + format);
 		}
