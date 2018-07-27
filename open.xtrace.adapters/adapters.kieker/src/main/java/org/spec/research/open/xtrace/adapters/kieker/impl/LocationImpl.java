@@ -3,10 +3,10 @@ package org.spec.research.open.xtrace.adapters.kieker.impl;
 import java.io.Serializable;
 import java.util.Optional;
 
-import kieker.tools.traceAnalysis.systemModel.Execution;
-
 import org.spec.research.open.xtrace.api.core.Location;
 import org.spec.research.open.xtrace.api.utils.StringUtils;
+
+import kieker.tools.traceAnalysis.systemModel.Execution;
 
 /**
  * Implementation of Location interface.
@@ -102,5 +102,10 @@ public class LocationImpl implements Location, Serializable {
 	@Override
 	public Optional<String> getServerName() {
 		return serverName;
+	}
+
+	@Override
+	public int getPort() {
+		throw new UnsupportedOperationException();
 	}
 }

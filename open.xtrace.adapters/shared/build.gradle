@@ -1,4 +1,8 @@
-
+repositories {
+    maven {
+          url "https://repository.novatec-gmbh.de/content/repositories/diagnoseIT/"
+    }
+}
 dependencies { 
-
+	compile 'org.spec.research:open.xtrace.api:0.2.1'
 }

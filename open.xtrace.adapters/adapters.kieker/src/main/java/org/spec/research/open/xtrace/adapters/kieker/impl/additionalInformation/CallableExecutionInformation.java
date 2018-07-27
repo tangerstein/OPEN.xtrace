@@ -1,8 +1,8 @@
 package org.spec.research.open.xtrace.adapters.kieker.impl.additionalInformation;
 
-import kieker.tools.traceAnalysis.systemModel.Execution;
-
 import org.spec.research.open.xtrace.api.core.AdditionalInformation;
+
+import kieker.tools.traceAnalysis.systemModel.Execution;
 
 /**
  * This class saves @Execution data of a @Callable. These are relevant for
@@ -76,5 +76,10 @@ public class CallableExecutionInformation implements AdditionalInformation {
 	@Override
 	public String getName() {
 		return CallableExecutionInformation.class.getName();
+	}
+
+	@Override
+	public Object getValue() {
+		throw new UnsupportedOperationException();
 	}
 }
