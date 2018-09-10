@@ -5,6 +5,7 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
@@ -41,7 +42,12 @@ public class SpanConverterHelper {
 		data.setTimeStamp(span.getTimeStamp());
 		data.setDuration(span.getDuration());
 		if (isRemoteInvocation(span, traceData.getSpans())) {
-			IITRemoteInvocation rootCallable = createRemoteInvocation(containingTrace, parent, trace, traceData, span);
+			IITRemoteInvocation rootCallable = null;
+			try {
+				rootCallable = createRemoteInvocation(containingTrace, parent, trace, traceData, span);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 			return rootCallable;
 		} else {
 			IITUseCaseInvocation rootCallable = createUseCaseInvocation(containingTrace, parent, span);
@@ -61,7 +67,11 @@ public class SpanConverterHelper {
 
 		for (Span child : children) {
 			if (isRemoteInvocation(child, traceData.getSpans())) {
-				parent.addCallee(createRemoteInvocation(containingTrace, parent, trace, traceData, child));
+				try {
+					parent.addCallee(createRemoteInvocation(containingTrace, parent, trace, traceData, child));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 			} else {
 				IITUseCaseInvocation usecaseCallable = createUseCaseInvocation(containingTrace, parent, child);
 				parent.addCallee(usecaseCallable);
@@ -82,25 +92,12 @@ public class SpanConverterHelper {
 	 * @return boolean, is span a remote invocation
 	 */
 	private static boolean isRemoteInvocation(Span child, List<Span> spans) {
-		if (child.getTags().containsKey(URL)) {
-			if (child.isRoot()) {
-				return true;
-			}
-			String childUrl = child.getTags().get(URL);
-			Span parentSpan = SpanConverterHelper.getParentOfSpan(spans, child);
-			if (parentSpan.getTags().containsKey(URL)) {
-				String parentUrl = parentSpan.getTags().get(URL);
-				if (childUrl.equals(parentUrl) || ("http://" + child.getTags().get("local.service.name") + childUrl).equals(parentUrl)) {
-					return false;
-				} else {
-					return true;
-				}
-			} else {
-				return true;
-			}
+		if (child.getTags().containsKey(URL) && child.isCaller()) {
+			return true;
 		} else {
 			return false;
 		}
+
 	}
 
 	/**
@@ -151,99 +148,63 @@ public class SpanConverterHelper {
 	 * @param span
 	 *            current span which will be transformed into a RemoteInvocation
 	 * @return {@link RemoteInvocation}
+	 * @throws Exception
 	 */
-	private static IITRemoteInvocation createRemoteInvocation(IITSubTraceImpl containingTrace, IITAbstractNestingCallable parent, IITTraceImpl trace, TraceData traceData, Span span) {
+	private static IITRemoteInvocation createRemoteInvocation(IITSubTraceImpl containingTrace, IITAbstractNestingCallable parent, IITTraceImpl trace, TraceData traceData, Span span) throws Exception {
 		IITRemoteInvocation rootCallable = null;
-		InvocationSequenceData remoteCall = getInvocationSequenceDataWithSpanID(span.getSpanIdent().getId(), traceData.getInvocationSequenceDatas());
+		InvocationSequenceData invocDataPlaceHolder = new InvocationSequenceData();
+		invocDataPlaceHolder.setId(span.getSpanIdent().getTraceId());
+		invocDataPlaceHolder.setTimeStamp(span.getTimeStamp());
+		invocDataPlaceHolder.setDuration(span.getDuration());
+		rootCallable = new IITRemoteInvocation(invocDataPlaceHolder, containingTrace, parent);
 
+		// Assumption: Caller should have only one child:
 
-		if (remoteCall == null) {
-			for (Span childSpan : SpanConverterHelper.getChildrenOfSpan(traceData.getSpans(), span.getSpanIdent())) {
-				if (childSpan.getTags().containsKey(URL) && !SpanConverterHelper.isRemoteInvocation(childSpan, traceData.getSpans())) {
-					remoteCall = getInvocationSequenceDataWithSpanID(childSpan.getSpanIdent().getId(), traceData.getInvocationSequenceDatas());
+		List<Span> serverSpans = getChildrenOfSpan(traceData.getSpans(), span.getSpanIdent());
 
-					if (remoteCall != null) {
-
-						// Clone invocationSequence
-						List<InvocationSequenceData> nestedInvocationSequences = remoteCall.getNestedSequences();
-						remoteCall = remoteCall.getClonedInvocationSequence();
-						remoteCall.setNestedSequences(nestedInvocationSequences);
-
-						// span and child span are put together, because they provide the same url
-						if (remoteCall.getTimerData() != null && remoteCall.getTimerData() instanceof HttpTimerData) {
-							if (SpanConverterHelper.getParentOfSpan(traceData.getSpans(), span).getTags().containsKey(HTTP_STATUS_CODE)) {
-								((HttpTimerData) remoteCall.getTimerData()).setHttpResponseStatus(Integer.parseInt(SpanConverterHelper.getParentOfSpan(traceData.getSpans(), span).getTags().get(HTTP_STATUS_CODE)));
-							}
-							if (((HttpTimerData) remoteCall.getTimerData()).getHttpInfo().getRequestMethod().equalsIgnoreCase("POST")
-									|| ((HttpTimerData) remoteCall.getTimerData()).getHttpInfo().getRequestMethod().equalsIgnoreCase("PATCH")) {
-								String queryString = convertJsonBodyToQueryString(span);
-								((HttpTimerData) remoteCall.getTimerData()).getHttpInfo().setQueryString(queryString);
-							}
-						}
-						// Invoc sequence has to be divided into two invocationSequences, because
-						// OPEN.xtrace
-						// differs between RemoteInvocations and MethodInvocations
-						InvocationSequenceData invocDataMethodInvocation = new InvocationSequenceData();
-						invocDataMethodInvocation.setId(remoteCall.getId());
-						invocDataMethodInvocation.setTimeStamp(remoteCall.getTimeStamp());
-						invocDataMethodInvocation.setApplicationId(remoteCall.getApplicationId());
-						invocDataMethodInvocation.setBusinessTransactionId(remoteCall.getBusinessTransactionId());
-						invocDataMethodInvocation.setSensorTypeIdent(remoteCall.getSensorTypeIdent());
-						invocDataMethodInvocation.setMethodIdent(remoteCall.getMethodIdent());
-						invocDataMethodInvocation.setNestedSequences(remoteCall.getNestedSequences());
-						remoteCall.setNestedSequences(new ArrayList<InvocationSequenceData>(Arrays.asList(invocDataMethodInvocation)));
-						// Set the timestamp of the remote callable to the timestamp of the normal
-						// span
-						remoteCall.getTimerData().setTimeStamp(span.getTimeStamp());
-						remoteCall.getTimerData().setDuration(span.getDuration() + childSpan.getDuration());
-						rootCallable = new IITRemoteInvocation(remoteCall, containingTrace, parent);
-						rootCallable.setTargetSubTrace(new IITSubTraceImpl(trace, remoteCall, getPlatformIdentWithID(remoteCall.getPlatformIdent(), traceData.getPlatformIdents())));
-						return rootCallable;
-					}
-				}
-			}
-			InvocationSequenceData invocDataPlaceHolder = new InvocationSequenceData();
-			invocDataPlaceHolder.setId(span.getSpanIdent().getTraceId());
-			invocDataPlaceHolder.setTimeStamp(span.getTimeStamp());
-			invocDataPlaceHolder.setDuration(span.getDuration());
-			rootCallable = new IITRemoteInvocation(invocDataPlaceHolder, containingTrace, parent);
-
-			rootCallable.setTargetSubTrace(new IITSubTraceImpl(trace, traceData, span, traceData.getRootSpan()));
+		if (serverSpans.size() > 1) {
+			throw new Exception("ClientSpan has more than one child. This can't be represented by OPEN.xtrace");
+		} else if (serverSpans.size() == 0) {
+			// Remotesystem is not tracked
+			return rootCallable;
 		} else {
-			// Clone invocationSequence
-			List<InvocationSequenceData> nestedInvocationSequences = remoteCall.getNestedSequences();
-			remoteCall = remoteCall.getClonedInvocationSequence();
-			remoteCall.setNestedSequences(nestedInvocationSequences);
+			Span serverSpan = serverSpans.get(0);
+			InvocationSequenceData invocData = getInvocationSequenceDataWithSpanID(serverSpan.getSpanIdent().getId(), traceData.getInvocationSequenceDatas());
+			// Check, wether ServerSpan is a inspectIT InvocTrace Span
+			// InvocTraceSpan always consists of the a http.status_code
+			if (null != invocData) {
+				// Clone invocationSequence
+				List<InvocationSequenceData> nestedInvocationSequences = invocData.getNestedSequences();
+				invocData = invocData.getClonedInvocationSequence();
+				invocData.setNestedSequences(nestedInvocationSequences);
 
-			if (remoteCall.getTimerData() != null && remoteCall.getTimerData() instanceof HttpTimerData) {
-				if (SpanConverterHelper.getParentOfSpan(traceData.getSpans(), span).getTags().containsKey(HTTP_STATUS_CODE)) {
-					((HttpTimerData) remoteCall.getTimerData()).setHttpResponseStatus(Integer.parseInt(SpanConverterHelper.getParentOfSpan(traceData.getSpans(), span).getTags().get(HTTP_STATUS_CODE)));
+				// Invoc sequence has to be divided into two invocationSequences, because
+				// OPEN.xtrace
+				// differs between RemoteInvocations and MethodInvocations
+				InvocationSequenceData invocDataMethodInvocation = new InvocationSequenceData();
+				invocDataMethodInvocation.setId(invocData.getId());
+				invocDataMethodInvocation.setTimeStamp(invocData.getTimeStamp());
+				invocDataMethodInvocation.setApplicationId(invocData.getApplicationId());
+				invocDataMethodInvocation.setBusinessTransactionId(invocData.getBusinessTransactionId());
+				invocDataMethodInvocation.setSensorTypeIdent(invocData.getSensorTypeIdent());
+				invocDataMethodInvocation.setMethodIdent(invocData.getMethodIdent());
+				invocDataMethodInvocation.setNestedSequences(invocData.getNestedSequences());
+				invocData.setNestedSequences(Arrays.asList(invocDataMethodInvocation));
+
+				// ClientSpan usually holds the body
+				if (span.getTags().containsKey("body") && invocData.getTimerData() instanceof HttpTimerData) {
+					if (null == ((HttpTimerData) invocData.getTimerData()).getParameters()) {
+						((HttpTimerData) invocData.getTimerData()).setParameters(new HashMap<String, String[]>());
+					}
+					((HttpTimerData) invocData.getTimerData()).getParameters().put("_BODY", new String[] { span.getTags().get("body") });
 				}
-				if (((HttpTimerData) remoteCall.getTimerData()).getHttpInfo().getRequestMethod().equalsIgnoreCase("POST")
-						|| ((HttpTimerData) remoteCall.getTimerData()).getHttpInfo().getRequestMethod().equalsIgnoreCase("PATCH")) {
-					String queryString = convertJsonBodyToQueryString(SpanConverterHelper.getParentOfSpan(traceData.getSpans(), span));
-					((HttpTimerData) remoteCall.getTimerData()).getHttpInfo().setQueryString(queryString);
-				}
+
+				rootCallable.setTargetSubTrace(new IITSubTraceImpl(trace, invocData, getPlatformIdentWithID(invocData.getPlatformIdent(), traceData.getPlatformIdents())));
+			} else {
+				rootCallable.setTargetSubTrace(new IITSubTraceImpl(trace, traceData, serverSpan));
 			}
-
-			rootCallable = new IITRemoteInvocation(remoteCall, containingTrace, parent);
-
-			// Invoc sequence has to be divided into two invocationSequences, because OPEN.xtrace
-			// differs between RemoteInvocations and MethodInvocations
-			InvocationSequenceData invocDataMethodInvocation = new InvocationSequenceData();
-			invocDataMethodInvocation.setId(remoteCall.getId());
-			invocDataMethodInvocation.setTimeStamp(remoteCall.getTimeStamp());
-			invocDataMethodInvocation.setApplicationId(remoteCall.getApplicationId());
-
-			invocDataMethodInvocation.setBusinessTransactionId(remoteCall.getBusinessTransactionId());
-			invocDataMethodInvocation.setSensorTypeIdent(remoteCall.getSensorTypeIdent());
-			invocDataMethodInvocation.setMethodIdent(remoteCall.getMethodIdent());
-			invocDataMethodInvocation.setNestedSequences(remoteCall.getNestedSequences());
-			remoteCall.setNestedSequences(new ArrayList<InvocationSequenceData>(Arrays.asList(invocDataMethodInvocation)));
-
-			rootCallable.setTargetSubTrace(new IITSubTraceImpl(trace, remoteCall, getPlatformIdentWithID(remoteCall.getPlatformIdent(), traceData.getPlatformIdents())));
+			return rootCallable;
 		}
-		return rootCallable;
 
 	}
 
@@ -287,7 +248,7 @@ public class SpanConverterHelper {
 		return children;
 	}
 
-	private static InvocationSequenceData getInvocationSequenceDataWithSpanID(long spanIdentID, List<InvocationSequenceData> listInvocationSequenceData) {
+	public static InvocationSequenceData getInvocationSequenceDataWithSpanID(long spanIdentID, List<InvocationSequenceData> listInvocationSequenceData) {
 		if (listInvocationSequenceData == null) {
 			return null;
 		}
@@ -299,7 +260,7 @@ public class SpanConverterHelper {
 		return null;
 	}
 
-	private static PlatformIdent getPlatformIdentWithID(long platformIdentID, List<PlatformIdent> listPlatformIdents) {
+	public static PlatformIdent getPlatformIdentWithID(long platformIdentID, List<PlatformIdent> listPlatformIdents) {
 		if (listPlatformIdents == null) {
 			return null;
 		}
@@ -342,6 +303,15 @@ public class SpanConverterHelper {
 	public static Span getSpan(SpanIdent spanIdent, List<Span> spans) {
 		for (Span span : spans) {
 			if (span.getSpanIdent().equals(spanIdent)) {
+				return span;
+			}
+		}
+		return null;
+	}
+
+	public static Span getRootSpan(Span span, List<Span> spans) {
+		for (Span currentSpan : spans) {
+			if (currentSpan.getSpanIdent().getId() == span.getSpanIdent().getTraceId()) {
 				return span;
 			}
 		}

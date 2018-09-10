@@ -65,6 +65,11 @@ public class HTTPRequestProcessingImpl extends AbstractNestingCallableImpl imple
 	private Optional<Map<String, String>> responseHTTPheaders = Optional.empty();
 
 	/**
+	 * Body
+	 */
+	private String body;
+
+	/**
 	 * Default constructor for serialization. This constructor should not be used except for
 	 * deserialization.
 	 */
@@ -201,6 +206,19 @@ public class HTTPRequestProcessingImpl extends AbstractNestingCallableImpl imple
 	 */
 	public void setResponseHTTPHeaders(Map<String, String> responseHTTPheaders) {
 		this.responseHTTPheaders = Optional.ofNullable(responseHTTPheaders);
+	}
+
+	@Override
+	public Optional<String> getRequestBody() {
+		return Optional.ofNullable(body);
+	}
+
+	/**
+	 * @param body
+	 *            the request body
+	 */
+	public void setRequestBody(String body) {
+		this.body = body;
 	}
 
 }

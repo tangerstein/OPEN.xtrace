@@ -84,4 +84,13 @@ public class IITHTTPRequestProcessing extends IITAbstractNestingCallable impleme
 		// Not supported
 		return Optional.empty();
 	}
+
+	@Override
+	public Optional<String> getRequestBody() {
+		if (null != httpData.getParameters() && httpData.getParameters().containsKey("_BODY")) {
+			return Optional.ofNullable(httpData.getParameters().get("_BODY")[0]);
+		} else {
+			return Optional.empty();
+		}
+	}
 }

@@ -1,8 +1,6 @@
 package org.diagnoseit.spike.inspectit.trace.impl;
 
 import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.InvalidParameterException;
 import java.util.Collections;
@@ -30,15 +28,16 @@ import rocks.inspectit.shared.all.tracing.data.Span;
 
 public class IITSubTraceImpl extends IITAbstractIdentifiableImpl implements SubTrace, Location {
 
+	private static final String HTTP_URL_KEY = "http.url";
+
 	/** Serial version id. */
 	private static final long serialVersionUID = -8069154836545294257L;
 
 	public static final String UNKNOWN = "UNKNOWN";
+
 	/**
 	 * Application name is not specified per default in the traces.
 	 */
-	private static final String APPLICATION_NAME = "sock-shop";
-
 	private final InvocationSequenceData isData;
 	private final Callable root;
 	private PlatformIdent pIdent;
@@ -95,94 +94,61 @@ public class IITSubTraceImpl extends IITAbstractIdentifiableImpl implements SubT
 		trace = containingTrace;
 	}
 
-	public IITSubTraceImpl(IITTraceImpl containingTrace, InvocationSequenceData isData) {
-
-		super(isData.getId());
-		this.root = IITTraceImpl.createCallable(isData, this, null);
-		this.isData = isData;
-		this.subTraceID = isData.getId();
-		this.responseTime = Math.round(isData.getDuration() * Trace.MILLIS_TO_NANOS_FACTOR);
-		if (null != containingTrace.getCachedDataService()) {
-			this.applicationName = containingTrace.getCachedDataService().getApplicationForId(isData.getApplicationId()).getName();
-			this.businessTransactionName = containingTrace.getCachedDataService().getBusinessTransactionForId(isData.getApplicationId(), isData.getBusinessTransactionId()).getName();
-		}
-
-		if (null != getPlatformIdent()) {
-			if (!getPlatformIdent().getDefinedIPs().isEmpty()) {
-				for (String ip : getPlatformIdent().getDefinedIPs()) {
-					if (!ip.contains(":")) {
-						this.host = ip;
-						this.port = 80;
-						break;
-					} else {
-						int i = ip.indexOf(":");
-						this.host = ip.substring(0, i);
-						this.port = Integer.parseInt(ip.substring(i + 1));
-					}
-				}
-			}
-		}
-
-		this.platformID = isData.getPlatformIdent();
-		trace = containingTrace;
-		System.out.println("Inner: " + pIdent);
-	}
-
 	/**
 	 * Create SubTraceImpl using inspectIT spans.
 	 * 
 	 * @param containingTrace
 	 * @param spans
+	 * @throws MalformedURLException
 	 */
-	public IITSubTraceImpl(IITTraceImpl containingTrace, TraceData traceData, Span span, Span rootSpan) {
-		super((rootSpan.hashCode() * (long) Math.pow(10, String.valueOf(rootSpan.getDuration()).length() + 1)) + (int) rootSpan.getDuration());
+	public IITSubTraceImpl(IITTraceImpl containingTrace, TraceData traceData, Span span) {
+		super((span.hashCode() * (long) Math.pow(10, String.valueOf(span.getDuration()).length() + 1)) + (int) span.getDuration());
 		this.trace = containingTrace;
-
-		// Check, whether this subtrace is part of an existing RemoteInvocation.
-		if (null != span) {
-			String url = span.getTags().getOrDefault("http.url", UNKNOWN);
-			if (!url.contains("://")) {
-				url = "unkownSchema://" + url;
-			}
+		// Check, whether we have to set a http request processing callable as root
+		if (!span.isCaller() && span.getTags().containsKey(HTTP_URL_KEY)) {
+			URL urlObject = null;
 			List<Span> childrenSpans = SpanConverterHelper.getChildrenOfSpan(traceData.getSpans(), span.getSpanIdent());
 			Span parentSpan = SpanConverterHelper.getParentOfSpan(traceData.getSpans(), span);
-
 			try {
-				URL urlObject = new URL(url);
-				if (!urlObject.getHost().isEmpty()) {
-					this.host = urlObject.getHost();
-				}
-				if(urlObject.getPort() != 0) {
-					this.port = urlObject.getPort();
-				} else {
-					this.port = 80;
-				}
+				String url = span.getTags().getOrDefault(HTTP_URL_KEY, UNKNOWN);
+				urlObject = new URL(url);
+
 			} catch (MalformedURLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				if (null != parentSpan) {
+					String url = parentSpan.getTags().getOrDefault(HTTP_URL_KEY, UNKNOWN);
+					try {
+						urlObject = new URL(url);
+					} catch (MalformedURLException e1) {
+						e1.printStackTrace();
+					}
+				}
 			}
 
-			if (childrenSpans.isEmpty()) {
-				// Remote system is not tracked, but HTTPRequestProcessing can be provided.
-				this.root = generateHTTPRequestProcessingCallable(span, parentSpan, url);
-			} else {
-				IITHTTPRequestProcessing httpRequestProcessing = generateHTTPRequestProcessingCallable(span, parentSpan, url);
-				for (Span childSpan : childrenSpans) {
-					httpRequestProcessing.addCallee(SpanConverterHelper.createCallable(this, httpRequestProcessing, containingTrace, traceData, childSpan));
-				}
-				this.root = httpRequestProcessing;
+			if (!urlObject.getHost().isEmpty()) {
+				this.host = urlObject.getHost();
 			}
+			if (urlObject.getPort() != 0) {
+				this.port = urlObject.getPort();
+			} else {
+				this.port = 80;
+			}
+
+			IITHTTPRequestProcessing httpRequestProcessing = generateHTTPRequestProcessingCallable(span, parentSpan, urlObject, this);
+			for (Span childSpan : childrenSpans) {
+				httpRequestProcessing.addCallee(SpanConverterHelper.createCallable(this, httpRequestProcessing, containingTrace, traceData, childSpan));
+			}
+			this.root = httpRequestProcessing;
 
 		} else {
-			this.host = rootSpan.getTags().get("local.service.name");
-			this.root = SpanConverterHelper.createCallable(this, null, containingTrace, traceData, rootSpan);
-			this.businessTransactionName = rootSpan.getTags().getOrDefault("businessTransaction", rootSpan.getTags().getOrDefault(ExtraTags.OPERATION_NAME, "unkown transaction"));
+			this.host = span.getTags().getOrDefault("local.service.name", "unkown");
+			this.root = SpanConverterHelper.createCallable(this, null, containingTrace, traceData, span);
+			this.businessTransactionName = span.getTags().getOrDefault("businessTransaction", span.getTags().getOrDefault(ExtraTags.OPERATION_NAME, "unkown transaction"));
 
 		}
 		this.isData = null;
-		this.subTraceID = rootSpan.getSpanIdent().getTraceId();
+		this.subTraceID = span.getSpanIdent().getTraceId();
 		this.responseTime = Math.round(traceData.getSpans().get(0).getDuration() * Trace.MILLIS_TO_NANOS_FACTOR);
-		this.applicationName = rootSpan.getTags().getOrDefault("application", APPLICATION_NAME);
+		this.applicationName = span.getTags().getOrDefault("application", "unkown application");
 		this.platformID = -1;
 
 	}
@@ -194,33 +160,26 @@ public class IITSubTraceImpl extends IITAbstractIdentifiableImpl implements SubT
 	 * @param url
 	 * @return
 	 */
-	private IITHTTPRequestProcessing generateHTTPRequestProcessingCallable(Span span, Span parentSpan, String url) {
+	private static IITHTTPRequestProcessing generateHTTPRequestProcessingCallable(Span span, Span parentSpan, URL url, IITSubTraceImpl containingSubtrace) {
 
 		HttpInfo httpInfo = new HttpInfo();
-		try {
-			URI uri = new URI(url);
-			if (span.getTags().containsKey("http.method")) {
-				httpInfo.setRequestMethod(span.getTags().get("http.method"));
-			} else if (span.getTags().containsKey("http.request.method")) {
-				httpInfo.setRequestMethod(span.getTags().get("http.request.method"));
+		if (span.getTags().containsKey("http.method")) {
+			httpInfo.setRequestMethod(span.getTags().get("http.method"));
+		} else if (span.getTags().containsKey("http.request.method")) {
+			httpInfo.setRequestMethod(span.getTags().get("http.request.method"));
 
-			} else {
-				throw new InvalidParameterException("HTTP method is missing in the span tags. Please make sure, that each remote span contains a proper HTTP method by using the tag http.method or http.request.method");
-			}
-			httpInfo.setUri(uri.getRawPath());
-			httpInfo.setScheme(uri.getScheme());
-			if (httpInfo.getRequestMethod().equalsIgnoreCase("POST") || httpInfo.getRequestMethod().equalsIgnoreCase("PATCH")) {
-				httpInfo.setQueryString(SpanConverterHelper.convertJsonBodyToQueryString(span));
-			} else {
-				httpInfo.setQueryString(uri.getQuery());
-			}
-			httpInfo.setServerPort(uri.getPort());
-		} catch (URISyntaxException e) {
-			e.printStackTrace();
+		} else {
+			throw new InvalidParameterException("HTTP method is missing in the span tags. Please make sure, that each remote span contains a proper HTTP method by using the tag http.method or http.request.method");
 		}
+		httpInfo.setUri(url.getPath());
+		httpInfo.setScheme(url.getProtocol());
+
+		httpInfo.setServerPort(url.getPort());
+
 		HttpTimerData httpTimerData = new HttpTimerData(span.getTimeStamp(), -1, -1, -1);
 		httpTimerData.setId(span.getSpanIdent().getId());
 		httpTimerData.setHttpInfo(httpInfo);
+
 		Map<String, String> headers = new HashMap<String, String>();
 
 		if (null != span.getTags().get("cookie")) {
@@ -230,11 +189,20 @@ public class IITSubTraceImpl extends IITAbstractIdentifiableImpl implements SubT
 
 		Map<String, String[]> parameters = new HashMap<String, String[]>();
 
-		// TODO: Has to be filled
-		httpTimerData.setParameters(parameters);
 
+		// Check if body is set in in current or caller span
+		if (span.getTags().containsKey("body")) {
+			parameters.put("_BODY", new String[] { span.getTags().get("body") });
+		} else if (null != parentSpan && parentSpan.getTags().containsKey("body")) {
+			parameters.put("_BODY", new String[] { parentSpan.getTags().get("body") });
+		}
+
+		httpTimerData.setParameters(parameters);
+		httpInfo.setQueryString(url.getQuery());
 		if (null != parentSpan) {
-		httpTimerData.setHttpResponseStatus(Integer.parseInt(parentSpan.getTags().getOrDefault("http.status_code", "-1")));
+			httpTimerData.setHttpResponseStatus(Integer.parseInt(parentSpan.getTags().getOrDefault("http.status_code", "-1")));
+		} else {
+			httpTimerData.setHttpResponseStatus(Integer.parseInt(span.getTags().getOrDefault("http.status_code", "-1")));
 		}
 		InvocationSequenceData invocationSequenceData = new InvocationSequenceData();
 		invocationSequenceData.setId(span.getSpanIdent().getId());
@@ -242,8 +210,7 @@ public class IITSubTraceImpl extends IITAbstractIdentifiableImpl implements SubT
 		invocationSequenceData.setTimeStamp(span.getTimeStamp());
 		invocationSequenceData.setDuration(span.getDuration());
 		// FIXME: Dirty hack to provide multiple Spans on the same level.
-		IITHTTPRequestProcessing httpRequestProcessing = new IITHTTPRequestProcessing(invocationSequenceData, this, null);
-		// TODO
+		IITHTTPRequestProcessing httpRequestProcessing = new IITHTTPRequestProcessing(invocationSequenceData, containingSubtrace, null);
 		return httpRequestProcessing;
 	}
 

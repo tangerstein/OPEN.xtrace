@@ -276,6 +276,7 @@ public class JsonOPENxtraceSerializer implements OPENxtraceSerializer {
 			jgen.writeObjectField("HTTPParameters", value.getHTTPParameters().orElse(null));
 			jgen.writeObjectField("HTTPHeaders", value.getHTTPHeaders().orElse(null));
 			jgen.writeObjectField("HTTPAttributes", value.getHTTPAttributes().orElse(null));
+			jgen.writeObjectField("body", value.getRequestBody().orElse(null));
 
 			jgen.writeStringField("@class", HTTPRequestProcessing.class.getCanonicalName());
 			jgen.writeEndObject();

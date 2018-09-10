@@ -59,9 +59,15 @@ public interface HTTPRequestProcessing extends NestingCallable {
     Optional<Long> getResponseCode();
     
     /**
-     * Returns a Map of Response HTTP headers.
-     *
-     * @return an {@link Optional} with an <b>unmodifiable map</b> of Response HTTP headers as value. Empty {@link Optional} if not present.
-     */
+	 * Returns the body String of the request
+	 */
+	Optional<String> getRequestBody();
+
+	/**
+	 * Returns a Map of Response HTTP headers.
+	 *
+	 * @return an {@link Optional} with an <b>unmodifiable map</b> of Response HTTP headers as
+	 *         value. Empty {@link Optional} if not present.
+	 */
     Optional<Map<String, String>> getResponseHTTPHeaders();
 }

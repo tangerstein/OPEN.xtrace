@@ -277,9 +277,13 @@ public class JsonOPENxtraceDeserializer implements OPENxtraceDeserializer {
 
 			// Execute super method
 			RemoteInvocationImpl remoteInvocation = (RemoteInvocationImpl) super.deserialize(node, ctxt);
+			SubTraceImpl targetSubTrace = null;
 
-			JsonParser targetSubTraceJsonParser = new JsonFactory(jp.getCodec()).createJsonParser(node.get("targetSubTrace").toString());
-			SubTraceImpl targetSubTrace = (SubTraceImpl) new SubTraceDeserializer((TraceImpl) remoteInvocation.getContainingSubTrace().getContainingTrace()).deserialize(targetSubTraceJsonParser, ctxt);
+			if (!node.get("targetSubTrace").isNull()) {
+				JsonParser targetSubTraceJsonParser = new JsonFactory(jp.getCodec()).createJsonParser(node.get("targetSubTrace").toString());
+				targetSubTrace = (SubTraceImpl) new SubTraceDeserializer((TraceImpl) remoteInvocation.getContainingSubTrace().getContainingTrace()).deserialize(targetSubTraceJsonParser, ctxt);
+			}
+
 			remoteInvocation.setTargetSubTrace(targetSubTrace);
 			remoteInvocation.setTarget(node.get("target").getTextValue());
 
@@ -319,6 +323,7 @@ public class JsonOPENxtraceDeserializer implements OPENxtraceDeserializer {
 			httpRequestProcessing.setHTTPParameters(objectMapper.readValue(node.get("HTTPParameters"), mapTypRefStringArray));
 			httpRequestProcessing.setHTTPHeaders(objectMapper.readValue(node.get("HTTPHeaders"), mapTypRefString));
 			httpRequestProcessing.setHTTPAttributes(objectMapper.readValue(node.get("HTTPAttributes"), mapTypRefString));
+			httpRequestProcessing.setRequestBody(node.get("body").getTextValue());
 
 			return httpRequestProcessing;
 		}

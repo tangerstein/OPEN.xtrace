@@ -72,4 +72,9 @@ public class HttpRequestProcessingImpl extends AbstractNestingCallableImpl imple
 		return Optional.empty();
 	}
 
+	@Override
+	public Optional<String> getRequestBody() {
+		return Optional.empty();
+	}
+
 }

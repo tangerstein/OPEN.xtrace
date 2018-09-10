@@ -39,11 +39,11 @@ public class IITTraceImpl extends IITAbstractIdentifiableImpl implements Trace {
 	private SubTrace root;
 	private ICachedDataService cachedDataService;
 
-	public IITTraceImpl(InvocationSequenceData root, ICachedDataService cachedDataService) {
-		super(root.getId());
-		this.cachedDataService = cachedDataService;
-		this.root = new IITSubTraceImpl(this, root);
-	}
+	// public IITTraceImpl(InvocationSequenceData root, ICachedDataService cachedDataService) {
+	// super(root.getId());
+	// this.cachedDataService = cachedDataService;
+	// this.root = new IITSubTraceImpl(this, root);
+	// }
 
 	public IITTraceImpl(InvocationSequenceData root, PlatformIdent pIdent) {
 		super(root.getId());
@@ -54,7 +54,7 @@ public class IITTraceImpl extends IITAbstractIdentifiableImpl implements Trace {
 		super((traceData.getRootSpan().hashCode() * (long) Math.pow(10, String.valueOf(traceData.getRootSpan().getDuration()).length() + 1)) + (int) traceData.getRootSpan().getDuration());
 		this.cachedDataService = cachedDataService;
 		this.traceData = traceData;
-		this.root = new IITSubTraceImpl(this, traceData, null, traceData.getRootSpan());
+		this.root = new IITSubTraceImpl(this, traceData, traceData.getRootSpan());
 	}
 
 	@Override
