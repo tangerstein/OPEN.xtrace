@@ -184,6 +184,7 @@ public class SpanConverterHelper {
 				InvocationSequenceData invocDataMethodInvocation = new InvocationSequenceData();
 				invocDataMethodInvocation.setId(invocData.getId());
 				invocDataMethodInvocation.setTimeStamp(invocData.getTimeStamp());
+				invocDataMethodInvocation.setDuration(invocData.getDuration());
 				invocDataMethodInvocation.setApplicationId(invocData.getApplicationId());
 				invocDataMethodInvocation.setBusinessTransactionId(invocData.getBusinessTransactionId());
 				invocDataMethodInvocation.setSensorTypeIdent(invocData.getSensorTypeIdent());
